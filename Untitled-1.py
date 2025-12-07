@@ -70,16 +70,20 @@ adjacency = {
     'I': ['F', 'G']
 }
 
+# Function to compute Euclidean distance between two nodes
+def euclid_distance(node1, node2):
+    x1, y1 = nodes[node1]
+    x2, y2 = nodes[node2]
+    return math.hypot(x2 - x1, y2 - y1)
+
 # Compute initial weights (Euclidean distance) and store each undirected edge once
 weights = {}
 for n1 in adjacency:
     for n2 in adjacency[n1]:
         edge = tuple(sorted([n1, n2]))
         if edge not in weights:
-            x1, y1 = nodes[n1]
-            x2, y2 = nodes[n2]
-            dist = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-            weights[edge] = int(dist)
+            weights[edge] = int(euclid_distance(n1, n2))
+
 
 # Blocked sets
 blocked_nodes = set()
@@ -94,10 +98,7 @@ path_cost = None      # numeric cost or None
 # =====================
 # Helper functions (math, drawing, lookup)
 # =====================
-def euclid_distance(node1, node2):
-    x1, y1 = nodes[node1]
-    x2, y2 = nodes[node2]
-    return math.hypot(x2 - x1, y2 - y1)
+
 
 def draw_text(surface, text, x, y, color=(220,220,220)):
     img = font.render(text, True, color)
@@ -146,7 +147,6 @@ def find_edge_near_position(position, max_distance=12):
 # Returns (path_list, cost) or (None, None) if no path
 # =====================
 def heuristic(node1, node2):
-    # admissible heuristic: straight-line distance
     return euclid_distance(node1, node2)
 
 def astar(start, goal):
