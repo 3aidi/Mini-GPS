@@ -149,6 +149,14 @@ def find_edge_near_position(position, max_distance=12):
 def heuristic(node1, node2):
     return euclid_distance(node1, node2)
 
+def reconstruct_path(came_from, current):
+    path = []
+    while current is not None:
+        path.append(current)
+        current = came_from.get(current, None)
+    path.reverse()
+    return path
+
 def astar(start, goal):
     # Basic checks
     if start is None or goal is None:
@@ -184,14 +192,7 @@ def astar(start, goal):
 
         # If we reached the goal, reconstruct the path
         if current_node == goal:
-            path = []
-            node = current_node
-            while node is not None:
-                path.append(node)
-                node = came_from.get(node, None)
-            path.reverse()
-            # g_score[goal] should exist here
-            return path, g_score.get(goal, None)
+            return reconstruct_path(came_from, current_node), g_score.get(goal, None)
 
         # Mark current node as processed
         closed_set.add(current_node)
