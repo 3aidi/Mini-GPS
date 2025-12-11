@@ -1,17 +1,14 @@
 """
-mini_gps_simple.py
-Beginner-friendly Mini-GPS with A* pathfinding and interactive editing.
-
-Features:
- - Visual map with nodes and edges
- - Click nodes to set START (left) and GOAL (right)
- - SHIFT+left-click a node to toggle it blocked (unusable)
- - Click near an edge to increase traffic weight (+50)
- - ALT+click near an edge to decrease traffic weight (-50, minimum 1)
- - SPACE: compute path (no animation)
- - R: reset start, goal, and path
- - S: save screenshot as mini_gps_snapshot.png
- - ESC or window close: quit
+Mini Egypt Map GPS (with A*)
+Each node = Egyptian Governorate
+Left click: set START
+Right click: set GOAL
+SHIFT + left click: toggle blocked node
+Click near edge = increase traffic
+ALT + click edge = reduce traffic
+SPACE = compute path
+R = reset
+S = save snapshot
 """
 
 import pygame
@@ -22,13 +19,13 @@ import sys
 # =====================
 # Configuration
 # =====================
-WINDOW_WIDTH = 1000
-WINDOW_HEIGHT = 700
+WINDOW_WIDTH = 1600
+WINDOW_HEIGHT = 1050
 FPS = 60
 
-NODE_RADIUS = 18          # visual radius of node circles
-EDGE_BASE_WIDTH = 4       # base line width for edges
-TRAFFIC_STEP = 50         # amount to change weight when clicking an edge
+NODE_RADIUS = 25
+EDGE_BASE_WIDTH = 4
+TRAFFIC_STEP = 50
 WEIGHT_LABEL_OFFSET_X = 6
 WEIGHT_LABEL_OFFSET_Y = -10
 
@@ -37,275 +34,274 @@ WEIGHT_LABEL_OFFSET_Y = -10
 # =====================
 pygame.init()
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-pygame.display.set_caption("Mini GPS - Simple A*")
+pygame.display.set_caption("Mini Egypt GPS - A* Pathfinding")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont(None, 20)
 
 # =====================
-# Graph definition
+# Egyptian Map Nodes (Scaled + Spread)
 # =====================
-# Positions (x, y) for nodes (edit to change layout)
+
+def S(x): return int(x * 1.4 + 80)
+def T(y): return int(y * 1.4 + 40)
+
 nodes = {
-    'A': (100, 500),
-    'B': (260, 420),
-    'C': (260, 580),
-    'D': (420, 500),
-    'E': (600, 420),
-    'F': (600, 580),
-    'G': (760, 500),
-    'H': (880, 380),
-    'I': (880, 620),
+    # Delta (Top)
+    "Alex": (S(200), T(120)),
+    "Beheira": (S(260), T(160)),
+    "KafrElSheikh": (S(300), T(120)),
+    "Gharbia": (S(330), T(160)),
+    "Monufia": (S(300), T(200)),
+    "Dakahliya": (S(380), T(140)),
+    "Damietta": (S(430), T(110)),
+    "Sharqia": (S(420), T(200)),
+    "PortSaid": (S(480), T(120)),
+
+    # Cairo region
+    "Qalyubia": (S(340), T(240)),
+    "Cairo": (S(360), T(280)),
+    "Giza": (S(300), T(300)),
+    "Suez": (S(460), T(260)),
+    "Ismailia": (S(480), T(220)),
+
+    # Upper Egypt
+    "BeniSuef": (S(330), T(360)),
+    "Fayoum": (S(280), T(360)),
+    "Minya": (S(340), T(420)),
+    "Asyut": (S(340), T(480)),
+    "Sohag": (S(340), T(540)),
+    "Qena": (S(340), T(600)),
+    "Luxor": (S(340), T(650)),
+    "Aswan": (S(340), T(700)),
+
+    # Sinai
+    "NorthSinai": (S(560), T(180)),
+    "SouthSinai": (S(560), T(300)),
+
+    # Red Sea
+    "RedSea": (S(480), T(400)),
+    "Hurghada": (S(500), T(500)),
 }
 
-# Adjacency list (undirected)
+# =====================
+# Egyptian Roads (Adjacency)
+# =====================
+
 adjacency = {
-    'A': ['B', 'C'],
-    'B': ['A', 'D', 'E'],
-    'C': ['A', 'D', 'F'],
-    'D': ['B', 'C', 'E', 'F'],
-    'E': ['B', 'D', 'G', 'H'],
-    'F': ['C', 'D', 'G', 'I'],
-    'G': ['D', 'E', 'F', 'H', 'I'],
-    'H': ['E', 'G'],
-    'I': ['F', 'G']
+    "Alex": ["Beheira"],
+    "Beheira": ["Alex", "KafrElSheikh", "Gharbia", "Monufia"],
+    "KafrElSheikh": ["Beheira", "Gharbia", "Dakahliya"],
+    "Gharbia": ["Beheira", "KafrElSheikh", "Dakahliya", "Monufia", "Qalyubia"],
+    "Monufia": ["Beheira", "Gharbia", "Qalyubia", "Cairo"],
+    "Dakahliya": ["KafrElSheikh", "Gharbia", "Damietta", "Sharqia", "PortSaid"],
+    "Damietta": ["Dakahliya", "PortSaid"],
+    "Sharqia": ["Dakahliya", "Qalyubia", "Ismailia"],
+    "PortSaid": ["Damietta", "Dakahliya", "Ismailia"],
+
+    "Qalyubia": ["Gharbia", "Monufia", "Cairo", "Sharqia"],
+    "Cairo": ["Qalyubia", "Giza", "Suez", "Ismailia"],
+    "Giza": ["Cairo", "Fayoum", "BeniSuef"],
+    "Suez": ["Cairo", "Ismailia", "SouthSinai"],
+    "Ismailia": ["Sharqia", "Cairo", "Suez", "PortSaid", "NorthSinai"],
+
+    "BeniSuef": ["Giza", "Fayoum", "Minya"],
+    "Fayoum": ["Giza", "BeniSuef"],
+    "Minya": ["BeniSuef", "Asyut"],
+    "Asyut": ["Minya", "Sohag"],
+    "Sohag": ["Asyut", "Qena"],
+    "Qena": ["Sohag", "Luxor", "Hurghada"],
+    "Luxor": ["Qena", "Aswan"],
+    "Aswan": ["Luxor"],
+
+    "NorthSinai": ["Ismailia", "SouthSinai"],
+    "SouthSinai": ["NorthSinai", "Suez", "Hurghada"],
+
+    "RedSea": ["Hurghada"],
+    "Hurghada": ["RedSea", "Qena", "SouthSinai"]
 }
 
-# Function to compute Euclidean distance between two nodes
-def euclid_distance(node1, node2):
-    x1, y1 = nodes[node1]
-    x2, y2 = nodes[node2]
+# =====================
+# Weight calculation
+# =====================
+
+def euclid_distance(n1, n2):
+    x1, y1 = nodes[n1]
+    x2, y2 = nodes[n2]
     return math.hypot(x2 - x1, y2 - y1)
 
-# Compute initial weights (Euclidean distance) and store each undirected edge once
 weights = {}
-for n1 in adjacency:
-    for n2 in adjacency[n1]:
-        edge = tuple(sorted([n1, n2]))
+for a in adjacency:
+    for b in adjacency[a]:
+        edge = tuple(sorted([a, b]))
         if edge not in weights:
-            weights[edge] = int(euclid_distance(n1, n2))
+            weights[edge] = int(euclid_distance(a, b))
 
+# =====================
+# States
+# =====================
 
-# Blocked sets
 blocked_nodes = set()
 blocked_edges = set()
-
-# UI state
 start_node = None
 goal_node = None
-current_path = None   # list of nodes from start to goal, or None
-path_cost = None      # numeric cost or None
+current_path = None
+path_cost = None
 
 # =====================
-# Helper functions (math, drawing, lookup)
+# Helpers
 # =====================
 
-
-def draw_text(surface, text, x, y, color=(220,220,220)):
+def draw_text(surface, text, x, y, color=(230, 230, 230)):
     img = font.render(text, True, color)
     surface.blit(img, (x, y))
 
-def find_node_at_position(position):
-    """Return node name if mouse is inside a node circle, else None."""
-    mx, my = position
+def find_node_at_pos(pos):
+    mx, my = pos
     for name, (x, y) in nodes.items():
-        dx = mx - x
-        dy = my - y
-        if dx*dx + dy*dy <= NODE_RADIUS * NODE_RADIUS:
+        if (mx - x) ** 2 + (my - y) ** 2 <= NODE_RADIUS ** 2:
             return name
     return None
 
-def find_edge_near_position(position, max_distance=12):
-    """
-    Return an edge tuple (u, v) if mouse is within max_distance of that edge segment.
-    Edge keys match the 'weights' dictionary (sorted tuple).
-    """
-    mx, my = position
-    best_edge = None
-    best_dist = max_distance
-    for edge, w in weights.items():
-        u, v = edge
+def find_edge_near_pos(pos, max_dist=12):
+    mx, my = pos
+    best = None
+    best_d = max_dist
+    for (u, v), w in weights.items():
         x1, y1 = nodes[u]
         x2, y2 = nodes[v]
-        dx = x2 - x1
-        dy = y2 - y1
-        # ignore degenerate edges
+        dx, dy = x2 - x1, y2 - y1
         if dx == 0 and dy == 0:
             continue
-        # projection factor t of mouse point onto segment (0..1)
-        t = ((mx - x1) * dx + (my - y1) * dy) / (dx*dx + dy*dy)
-        t = max(0.0, min(1.0, t))
-        px = x1 + t * dx
-        py = y1 + t * dy
+        t = ((mx-x1)*dx + (my-y1)*dy) / (dx*dx + dy*dy)
+        t = max(0, min(1, t))
+        px = x1 + t*dx
+        py = y1 + t*dy
         dist = math.hypot(mx - px, my - py)
-        if dist < best_dist:
-            best_dist = dist
-            best_edge = edge
-    return best_edge
+        if dist < best_d:
+            best_d = dist
+            best = (u, v)
+    if best:
+        return tuple(sorted(best))
+    return None
 
 # =====================
-# A* implementation (clear & explicit, uses heapq for efficiency)
-# Returns (path_list, cost) or (None, None) if no path
+# A* pathfinding
 # =====================
-def heuristic(node1, node2):
-    return euclid_distance(node1, node2)
+
+def heuristic(a, b):
+    return euclid_distance(a, b)
 
 def astar(start, goal):
-    # Basic checks
     if start is None or goal is None:
         return None, None
     if start in blocked_nodes or goal in blocked_nodes:
         return None, None
 
-    # open_list is a min-heap of tuples: (f_score, g_score, node, parent)
-    open_list = []
-    initial_f = heuristic(start, goal) + 0  # g=0
-    heapq.heappush(open_list, (initial_f, 0.0, start, None))
+    pq = []
+    heapq.heappush(pq, (heuristic(start, goal), 0, start, None))
+    came = {}
+    g = {start: 0}
 
-    # Bookkeeping
-    came_from = {}            # came_from[node] = parent_node
-    g_score = {start: 0.0}    # best known cost to reach node
-    closed_set = set()        # nodes fully processed
+    while pq:
+        f, gc, node, parent = heapq.heappop(pq)
 
-    # Main loop
-    while len(open_list) > 0:
-        # Pop item with smallest f_score
-        current_item = heapq.heappop(open_list)
-        f_current = current_item[0]
-        g_current = current_item[1]
-        current_node = current_item[2]
-        parent_node = current_item[3]
-
-        # If we already found a better g_score for this node, skip this stale item
-        if current_node in g_score and g_current > g_score[current_node]:
+        if node in g and gc > g[node]:
             continue
 
-        # Record the parent (used later for path reconstruction)
-        came_from[current_node] = parent_node
+        came[node] = parent
 
-        # If we reached the goal, reconstruct the path
-        if current_node == goal:
+        if node == goal:
             path = []
-            node = current_node
-            while node is not None:
-                path.append(node)
-                node = came_from.get(node, None)
-            path.reverse()
-            # g_score[goal] should exist here
-            return path, g_score.get(goal, None)
+            n = node
+            while n is not None:
+                path.append(n)
+                n = came[n]
+            return list(reversed(path)), g[goal]
 
-        # Mark current node as processed
-        closed_set.add(current_node)
-
-        # Examine neighbors
-        for neighbor in adjacency.get(current_node, []):
-            edge = tuple(sorted([current_node, neighbor]))
-
-            # Skip neighbor if it's blocked or the edge is blocked
-            if neighbor in closed_set:
-                continue
-            if neighbor in blocked_nodes or current_node in blocked_nodes:
-                continue
-            if edge in blocked_edges:
+        for nei in adjacency[node]:
+            edge = tuple(sorted([node, nei]))
+            if nei in blocked_nodes or edge in blocked_edges:
                 continue
 
-            # Tentative g cost if we go current -> neighbor
-            tentative_g = g_score[current_node] + weights[edge]
+            cost = g[node] + weights[edge]
+            if cost < g.get(nei, float("inf")):
+                g[nei] = cost
+                heapq.heappush(pq, (cost + heuristic(nei, goal), cost, nei, node))
 
-            # If neighbor has no g_score yet, treat it as infinite
-            previous_g = g_score.get(neighbor, float('inf'))
-
-            # If this path to neighbor is better, record it
-            if tentative_g < previous_g:
-                g_score[neighbor] = tentative_g
-                f_for_neighbor = tentative_g + heuristic(neighbor, goal)
-                # push to heap: (f, g, node, parent)
-                heapq.heappush(open_list, (f_for_neighbor, tentative_g, neighbor, current_node))
-
-    # If open_list empties and we never returned, there's no path
     return None, None
 
 # =====================
-# Drawing function
+# Drawing
 # =====================
-def draw_graph(path=None, path_cost_value=None):
-    screen.fill((22, 24, 30))  # dark background
 
-    # Draw edges
-    for edge, w in weights.items():
-        u, v = edge
+def draw_graph(path=None, cost=None):
+    screen.fill((20, 22, 30))
+
+    # edges
+    for (u, v), w in weights.items():
         x1, y1 = nodes[u]
         x2, y2 = nodes[v]
 
-        base_distance = euclid_distance(u, v)
-        ratio = w / (base_distance + 1e-9)
+        base = euclid_distance(u, v)
+        ratio = w / (base + 0.0001)
 
-        # choose color by traffic ratio
         if ratio < 1.6:
-            color = (160, 160, 160)   # normal gray
+            color = (150, 150, 150)
         elif ratio < 2.6:
-            color = (230, 200, 0)     # moderate (yellow)
+            color = (230, 200, 0)
         else:
-            color = (200, 40, 40)     # heavy (red)
+            color = (200, 40, 40)
 
-        # wider line for heavy ratio
-        width = int(EDGE_BASE_WIDTH * min(4.0, max(1.0, ratio)))
+        width = int(EDGE_BASE_WIDTH * min(4, max(1, ratio)))
 
-        # if blocked edge, draw as darker thick line
-        if edge in blocked_edges:
-            pygame.draw.line(screen, (32, 32, 32), (x1, y1), (x2, y2), width + 4)
+        if (u, v) in blocked_edges:
+            pygame.draw.line(screen, (30, 30, 30), (x1, y1), (x2, y2), width + 4)
         else:
             pygame.draw.line(screen, color, (x1, y1), (x2, y2), width)
 
-        # draw weight near middle
-        mid_x = int((x1 + x2) / 2 + WEIGHT_LABEL_OFFSET_X)
-        mid_y = int((y1 + y2) / 2 + WEIGHT_LABEL_OFFSET_Y)
-        draw_text(screen, str(int(w)), mid_x, mid_y, (200, 200, 200))
+        # weight label
+        mx = (x1 + x2) // 2 + WEIGHT_LABEL_OFFSET_X
+        my = (y1 + y2) // 2 + WEIGHT_LABEL_OFFSET_Y
+        draw_text(screen, str(w), mx, my)
 
-    # Draw path highlight if exists (thick green line behind nodes)
-    if path is not None and len(path) >= 2:
-        for i in range(len(path) - 1):
-            a = path[i]
-            b = path[i + 1]
-            pygame.draw.line(screen, (10, 200, 90), nodes[a], nodes[b], 10)
+    # path
+    if path and len(path) > 1:
+        for i in range(len(path)-1):
+            pygame.draw.line(screen, (10, 200, 90), nodes[path[i]], nodes[path[i+1]], 10)
 
-    # Draw nodes
+    # nodes
     for name, (x, y) in nodes.items():
         if name in blocked_nodes:
-            color = (20, 20, 20)            # black-like for blocked
+            color = (30, 30, 30)
         elif name == start_node:
-            color = (40, 200, 60)           # green for start
+            color = (40, 200, 60)
         elif name == goal_node:
-            color = (50, 140, 255)          # blue for goal
+            color = (60, 140, 255)
         else:
-            color = (200, 200, 200)         # light gray for normal nodes
+            color = (220, 220, 220)
 
         pygame.draw.circle(screen, color, (x, y), NODE_RADIUS)
         pygame.draw.circle(screen, (10, 10, 10), (x, y), NODE_RADIUS, 2)
-        draw_text(screen, name, x - 6, y - 9, (10, 10, 10))
+        draw_text(screen, name, x - 20, y - 8, (10, 10, 10))
 
-    # UI text area
-    info_y = WINDOW_HEIGHT - 110
-    cost_text = '-' if path_cost_value is None else str(int(path_cost_value))
-    draw_text(screen, f"Start: {start_node}   Goal: {goal_node}   Cost: {cost_text}", 10, info_y)
-    draw_text(screen, "LEFT click node = set START    RIGHT click node = set GOAL", 10, info_y + 20)
-    draw_text(screen, "SHIFT + LEFT click node = toggle BLOCKED    Click near edge = change traffic", 10, info_y + 40)
-    draw_text(screen, "ALT + click edge = decrease traffic    SPACE = compute path    R = reset    S = save", 10, info_y + 60)
-
-    # If there is no path but both start and goal are set, show message
-    if path is None and start_node is not None and goal_node is not None:
-        draw_text(screen, "No path exists between start and goal!", 10, info_y + 80, (255, 100, 100))
+    info_y = WINDOW_HEIGHT - 120
+    draw_text(screen, f"Start: {start_node}   Goal: {goal_node}   Cost: {cost if cost else '-'}", 10, info_y)
+    draw_text(screen, "Left click: START | Right click: GOAL | SHIFT+click: block node", 10, info_y + 20)
+    draw_text(screen, "Click edge: +traffic | ALT+click: -traffic | SPACE: path | R: reset | S: save", 10, info_y + 40)
 
     pygame.display.flip()
 
 # =====================
-# Save snapshot
+# Save Snapshot
 # =====================
+
 def save_snapshot():
-    pygame.image.save(screen, "mini_gps_snapshot.png")
+    pygame.image.save(screen, "egypt_gps_snapshot.png")
 
 # =====================
-# Main loop
+# Main Loop
 # =====================
+
 running = True
 while running:
     clock.tick(FPS)
@@ -317,67 +313,53 @@ while running:
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 running = False
-
             elif event.key == pygame.K_SPACE:
-                # compute path safely
-                result_path, result_cost = astar(start_node, goal_node)
-                if result_path is None:
-                    current_path = None
-                    path_cost = None
-                else:
-                    current_path = result_path
-                    path_cost = result_cost
-
+                current_path, path_cost = astar(start_node, goal_node)
             elif event.key == pygame.K_r:
-                # reset everything
-                start_node = None
-                goal_node = None
+                start_node = goal_node = None
                 current_path = None
                 path_cost = None
-
             elif event.key == pygame.K_s:
                 save_snapshot()
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
             pos = pygame.mouse.get_pos()
             mods = pygame.key.get_mods()
-            clicked_node = find_node_at_position(pos)
-            clicked_edge = find_edge_near_position(pos)
 
-            # SHIFT + left click: toggle blocked node
-            if clicked_node is not None and (mods & pygame.KMOD_SHIFT):
-                if clicked_node in blocked_nodes:
-                    blocked_nodes.remove(clicked_node)
+            node = find_node_at_pos(pos)
+            edge = find_edge_near_pos(pos)
+
+            # Shift = block/unblock node
+            if node and (mods & pygame.KMOD_SHIFT):
+                if node in blocked_nodes:
+                    blocked_nodes.remove(node)
                 else:
-                    blocked_nodes.add(clicked_node)
+                    blocked_nodes.add(node)
                 current_path = None
                 path_cost = None
 
-            # left click on node: set start
-            elif event.button == 1 and clicked_node is not None and not (mods & pygame.KMOD_SHIFT):
-                start_node = clicked_node
+            # Left click = start
+            elif event.button == 1 and node:
+                start_node = node
                 current_path = None
                 path_cost = None
 
-            # right click on node: set goal
-            elif event.button == 3 and clicked_node is not None:
-                goal_node = clicked_node
+            # Right click = goal
+            elif event.button == 3 and node:
+                goal_node = node
                 current_path = None
                 path_cost = None
 
-            # click near edge to change weight (ALT decreases)
-            elif clicked_edge is not None and clicked_node is None:
-                key = tuple(sorted(clicked_edge))
+            # Traffic change on edges
+            elif edge:
                 if mods & pygame.KMOD_ALT:
-                    weights[key] = max(1, weights[key] - TRAFFIC_STEP)
+                    weights[edge] = max(1, weights[edge] - TRAFFIC_STEP)
                 else:
-                    weights[key] = weights[key] + TRAFFIC_STEP
+                    weights[edge] += TRAFFIC_STEP
                 current_path = None
                 path_cost = None
 
-    # draw everything
     draw_graph(current_path, path_cost)
 
-# clean exit
 pygame.quit()
 sys.exit()
