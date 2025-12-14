@@ -148,23 +148,7 @@ Bank → Cafe → Club → Market → Hospital → Cinema
 
 ---
 
-## 13. How to Run the Program
-
-### Installation:
-1. Install Python 3
-2. Install Pygame:
-   ```bash
-   pip install pygame
-   ```
-
-### Run:
-```bash
-python Untitled-1.py
-```
-
----
-
-## 14. Controls Summary
+## 13. Controls Summary
 
 | Control | Action |
 |---------|--------|
@@ -180,7 +164,7 @@ python Untitled-1.py
 
 ---
 
-## 15. Conclusion
+## 14. Conclusion
 
 This project demonstrates how **A* pathfinding** works in a real-world-like GPS scenario.
 
