@@ -1,5 +1,5 @@
 """
-mini_gps_simple.py
+TrafficMap.py
 Beginner-friendly Mini-GPS with A* pathfinding and interactive editing.
 
 Features:
@@ -19,46 +19,30 @@ import math
 import heapq
 import sys
 
-# =====================
-# Configuration
-# =====================
+
 WINDOW_WIDTH = 1400
 WINDOW_HEIGHT = 700
 FPS = 60
-
-NODE_RADIUS = 40         # visual radius of node circles
-EDGE_BASE_WIDTH = 4       # base line width for edges
-TRAFFIC_STEP = 50         # amount to change weight when clicking an edge
+EDGE_BASE_WIDTH = 4       
+TRAFFIC_STEP = 50         
 WEIGHT_LABEL_OFFSET_X = 12
 WEIGHT_LABEL_OFFSET_Y = -20
-
-# Traffic visualization thresholds
 TRAFFIC_NORMAL_THRESHOLD = 1.6
 TRAFFIC_MODERATE_THRESHOLD = 2.6
 TRAFFIC_MAX_VISUAL_RATIO = 4.0
-
-# Node text styling
 NODE_PADDING_X = 10
 NODE_PADDING_Y = 6
-
-# Edge click detection
 EDGE_CLICK_MAX_DISTANCE = 12
+EPSILON = 1e-9  
 
-# Numerical constants
-EPSILON = 1e-9  # Prevent division by zero in heuristic
 
-# =====================
-# Initialize Pygame
-# =====================
 pygame.init()
 screen = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 pygame.display.set_caption("Mini GPS - Simple A*")
 clock = pygame.time.Clock()
 font = pygame.font.SysFont(None, 20)
 
-# =====================
-# Graph definition
-# =====================
+
 nodes = {
     "Bank":     (100, 100),
     "Cafe":     (350, 120),
@@ -78,7 +62,7 @@ nodes = {
     "Home":     (700, 600)
 }
 
-# Adjacency list (undirected)
+
 adjacency = {
     "Bank": ["Cafe", "School"],
     "Cafe": ["Bank", "Club", "Gym"],
@@ -95,12 +79,10 @@ adjacency = {
     "Library": ["Gym", "Office"],
     "Office": ["Library", "Cinema", "Market"],
 
-    "Home": ["Market"]  # connect Home logically
+    "Home": ["Market"] 
 }
 
-# =====================
-# Compute initial weights (Euclidean distance) and store each undirected edge once
-# =====================
+
 def euclid_distance(node1, node2):
     x1, y1 = nodes[node1]
     x2, y2 = nodes[node2]
@@ -113,9 +95,7 @@ for n1 in adjacency:
         if edge not in weights:
             weights[edge] = int(euclid_distance(n1, n2))
 
-# =====================
-# Blocked sets & UI state
-# =====================
+
 blocked_nodes = set()
 blocked_edges = set()
 
@@ -123,19 +103,20 @@ start_node = None
 goal_node = None
 current_path = None
 path_cost = None
+path_attempted = False
 
-# =====================
-# Helper functions (drawing, lookup)
-# =====================
+
+# (drawing, lookup)
 def draw_text(surface, text, x, y, color=(220,220,220)):
     img = font.render(text, True, color)
     surface.blit(img, (x, y))
 
 def reset_path():
     """Clear current path and cost after graph changes."""
-    global current_path, path_cost
+    global current_path, path_cost, path_attempted
     current_path = None
     path_cost = None
+    path_attempted = False
 
 def get_node_rect(name, x, y):
     """Calculate rectangle and text surface for a node label."""
@@ -151,7 +132,6 @@ def get_node_rect(name, x, y):
 # Node hit detection
 # =====================
 def find_node_at_position(position):
-    """Find which node (if any) was clicked."""
     mx, my = position
     for name, (x, y) in nodes.items():
         rect, _ = get_node_rect(name, x, y)
@@ -161,7 +141,6 @@ def find_node_at_position(position):
 
 
 def find_edge_near_position(position, max_distance=EDGE_CLICK_MAX_DISTANCE):
-    """Find which edge (if any) was clicked near."""
     mx, my = position
     best_edge = None
     best_dist = max_distance
@@ -187,11 +166,9 @@ def find_edge_near_position(position, max_distance=EDGE_CLICK_MAX_DISTANCE):
 # A* pathfinding
 # =====================
 def heuristic(node1, node2):
-    """Euclidean distance heuristic for A* (h-score)."""
     return euclid_distance(node1, node2)
 
 def reconstruct_path(came_from, current):
-    """Build the final path by backtracking through parent nodes."""
     path = []
     while current is not None:
         path.append(current)
@@ -200,17 +177,12 @@ def reconstruct_path(came_from, current):
     return path
 
 def astar(start, goal):
-    """A* pathfinding algorithm: finds shortest path considering blocked nodes/edges.
-    Returns (path, cost) or (None, None) if no path exists.
-    """
     if start is None or goal is None or start in blocked_nodes or goal in blocked_nodes:
         return None, None
     
-    # Efficiency: direct return if start equals goal
     if start == goal:
         return [start], 0
     
-    # Priority queue: (f_score, g_score, node, parent)
     open_list = []
     heapq.heappush(open_list, (heuristic(start, goal), 0.0, start, None))
     came_from = {}
@@ -234,7 +206,6 @@ def astar(start, goal):
         for neighbor in adjacency.get(current_node, []):
             edge = tuple(sorted([current_node, neighbor]))
             
-            # Skip if neighbor is blocked, edge is blocked, or already visited
             if neighbor in closed_set or neighbor in blocked_nodes or edge in blocked_edges:
                 continue
             
@@ -249,12 +220,8 @@ def astar(start, goal):
     
     return None, None
 
-# =====================
-# Drawing functions
-# =====================
+
 def draw_edges(path=None):
-    """Draw all edges with traffic-based coloring and highlight the path."""
-    # Draw regular edges
     for edge, weight in weights.items():
         node1, node2 = edge
         x1, y1 = nodes[node1]
@@ -291,17 +258,15 @@ def draw_edges(path=None):
             pygame.draw.line(screen, (10, 200, 90), nodes[from_node], nodes[to_node], 10)
 
 def draw_nodes():
-    """Draw all nodes as labeled rectangles with colors indicating their state."""
     for name, (x, y) in nodes.items():
-        # Determine node color based on state
         if name in blocked_nodes:
-            color = (20, 20, 20)      # Blocked - dark
+            color = (20, 20, 20)      
         elif name == start_node:
-            color = (40, 200, 60)     # Start - green
+            color = (40, 200, 60)     
         elif name == goal_node:
-            color = (50, 140, 255)    # Goal - blue
+            color = (50, 140, 255)    
         else:
-            color = (200, 200, 200)   # Normal - light gray
+            color = (200, 200, 200)   
         
         # Get rectangle and text surface
         rect, text_surface = get_node_rect(name, x, y)
@@ -316,7 +281,6 @@ def draw_nodes():
         screen.blit(text_surface, (x - text_width // 2, y - text_height // 2))
 
 def draw_ui_info(path_cost_value=None):
-    """Draw UI instructions and current state information."""
     info_y = WINDOW_HEIGHT - 110
     cost_text = '-' if path_cost_value is None else str(int(path_cost_value))
     
@@ -325,11 +289,10 @@ def draw_ui_info(path_cost_value=None):
     draw_text(screen, "SHIFT + LEFT click node = toggle BLOCKED    CTRL + click edge = toggle BLOCKED edge", 10, info_y + 40)
     draw_text(screen, "Click edge = increase traffic    ALT + click edge = decrease traffic    SPACE = compute    R = reset", 10, info_y + 60)
     
-    if current_path is None and start_node is not None and goal_node is not None:
+    if path_attempted and current_path is None and start_node is not None and goal_node is not None:
         draw_text(screen, "No path exists between start and goal!", 10, info_y + 80, (255, 100, 100))
 
 def draw_graph():
-    """Main drawing function: render complete graph visualization."""
     screen.fill((22, 24, 30))
     draw_edges(current_path)
     draw_nodes()
@@ -337,7 +300,7 @@ def draw_graph():
     pygame.display.flip()
     
 def save_snapshot():
-    pygame.image.save(screen, "mini_gps_snapshot.png")
+    pygame.image.save(screen, "Traffic_Map_snapshot.png")
 
 # =====================
 # Main loop
@@ -355,6 +318,7 @@ while running:
                 running = False
             elif event.key == pygame.K_SPACE:
                 # Compute path using A*
+                path_attempted = True
                 current_path, path_cost = astar(start_node, goal_node)
             elif event.key == pygame.K_r:
                 # Reset all selections
@@ -372,7 +336,7 @@ while running:
             
             # Toggle node blocking (SHIFT + click)
             if clicked_node and (modifiers & pygame.KMOD_SHIFT):
-                blocked_nodes ^= {clicked_node}  # Toggle using XOR
+                blocked_nodes ^= {clicked_node}  
                 reset_path()
                 
             # Set start or goal node
@@ -387,13 +351,12 @@ while running:
             elif clicked_edge and not clicked_node:
                 edge_key = tuple(sorted(clicked_edge))
                 
-                # CTRL + click = toggle edge blocking
                 if modifiers & pygame.KMOD_CTRL:
                     blocked_edges ^= {edge_key}  # Toggle using XOR
-                # ALT + click = decrease traffic
+
                 elif modifiers & pygame.KMOD_ALT:
                     weights[edge_key] = max(1, weights[edge_key] - TRAFFIC_STEP)
-                # Regular click = increase traffic
+
                 else:
                     weights[edge_key] += TRAFFIC_STEP
                 
