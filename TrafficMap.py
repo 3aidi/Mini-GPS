@@ -53,16 +53,13 @@ adjacency = {
     "Club": ["Cafe", "Park", "Market"],
     "Park": ["Club", "Mall", "Hospital"],
     "Mall": ["Park", "Cinema"],
-
     "School": ["Bank", "Gym"],
     "Gym": ["School", "Cafe", "Market", "Library"],
     "Market": ["Gym", "Club", "Hospital", "Office", "Home"],
     "Hospital": ["Market", "Park", "Cinema"],
     "Cinema": ["Hospital", "Mall", "Office"],
-
     "Library": ["Gym", "Office"],
     "Office": ["Library", "Cinema", "Market"],
-
     "Home": ["Market"] 
 }
 
@@ -96,7 +93,6 @@ def draw_text(surface, text, x, y, color=(220,220,220)):
     surface.blit(img, (x, y))
 
 def reset_path():
-    """Clear current path and cost after graph changes."""
     global current_path, path_cost, path_attempted
     current_path = None
     path_cost = None
@@ -112,9 +108,7 @@ def get_node_rect(name, x, y):
     rect = pygame.Rect(x - rect_width//2, y - rect_height//2, rect_width, rect_height)
     return rect, text_surface
 
-# =====================
 # Node hit detection
-# =====================
 def find_node_at_position(position):
     mx, my = position
     for name, (x, y) in nodes.items():
@@ -146,9 +140,7 @@ def find_edge_near_position(position, max_distance=EDGE_CLICK_MAX_DISTANCE):
             best_edge = edge
     return best_edge
 
-# =====================
 # A* pathfinding
-# =====================
 def heuristic(node1, node2):
     return euclid_distance(node1, node2)
 
@@ -214,13 +206,12 @@ def draw_edges(path=None):
         # Calculate traffic ratio (weight vs original distance)
         ratio = weight / (euclid_distance(node1, node2) + EPSILON)
         
-        # Color based on traffic level
         if ratio < TRAFFIC_NORMAL_THRESHOLD:
-            color = (160, 160, 160)  # Normal - gray
+            color = (160, 160, 160)  
         elif ratio < TRAFFIC_MODERATE_THRESHOLD:
-            color = (230, 200, 0)     # Moderate - yellow
+            color = (230, 200, 0)     
         else:
-            color = (200, 40, 40)     # Heavy - red
+            color = (200, 40, 40)    
         
         width = int(EDGE_BASE_WIDTH * min(TRAFFIC_MAX_VISUAL_RATIO, max(1.0, ratio)))
         
@@ -286,9 +277,7 @@ def draw_graph():
 def save_snapshot():
     pygame.image.save(screen, "Traffic_Map_snapshot.png")
 
-# =====================
 # Main loop
-# =====================
 running = True
 while running:
     clock.tick(FPS)
