@@ -1,19 +1,3 @@
-"""
-TrafficMap.py
-Beginner-friendly Mini-GPS with A* pathfinding and interactive editing.
-
-Features:
- - Visual map with nodes and edges
- - Click nodes to set START (left) and GOAL (right)
- - SHIFT+left-click a node to toggle it blocked (unusable)
- - Click near an edge to increase traffic weight (+50)
- - ALT+click near an edge to decrease traffic weight (-50, minimum 1)
- - SPACE: compute path (no animation)
- - R: reset start, goal, and path
- - S: save screenshot as mini_gps_snapshot.png
- - ESC or window close: quit
-"""
-
 import pygame
 import math
 import heapq
