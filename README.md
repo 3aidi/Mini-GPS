@@ -1,6 +1,6 @@
 # Mini GPS Traffic Map using A* Algorithm
 
-## Authors
+#Authors
 
 - **Mahmoud Saad Elaidi** (ID: 224101559)
 - **Ismail Ahmed Ismail** (ID: 224101657)
