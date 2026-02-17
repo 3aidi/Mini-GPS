@@ -100,7 +100,7 @@ The goal is to demonstrate graph traversal, heuristics, and pathfinding logic in
 **Start:** Bank  
 **Goal:** Cinema
 
-**Calculated path:**
+**Calculated path
 ```
 Bank → Cafe → Club → Market → Hospital → Cinema
 ```
